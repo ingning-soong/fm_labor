@@ -102,7 +102,7 @@ canvas{width:100%;max-width:900px;display:block;margin:0 auto;border-radius:8px;
 
 <div class="card">
   <h2>④ 인원 배치 <span class="q" data-t="tStaff">?</span></h2>
-  <div class="tipbox" id="tStaff">각 칸은 그 시간대에 동시에 일하는 사람 수. 주중 칸에 넣은 사람은 월~금 5일, 주말 칸에 넣은 사람은 토·일 2일 일한다고 계산. 다른 칸의 사람은 서로 다른 사람으로 봄. 주방과 홀에 최소 1명씩은 있어야 영업 가능</div>
+  <div class="tipbox" id="tStaff">각 칸은 그 시간대에 동시에 일하는 사람 수. 주중 칸에 넣은 사람은 월~금 5일, 주말 칸에 넣은 사람은 토·일 2일 일한다고 계산. 알바는 칸마다 다른 사람으로 봄. 정직원은 주방과 홀을 따로, 정직원을 넣은 칸들의 주간 근무시간을 모두 더해 주 40시간까지 1명으로 계산 (예: 주중 점심 27.5시간 + 주말 점심 11시간 = 38.5시간이면 정직원 1명). 40시간을 넘으면 1명 추가, 연장근로는 계산하지 않음. 주방과 홀에 최소 1명씩은 있어야 영업 가능</div>
   <div class="tw"><table id="staffTbl"></table></div>
   <div id="errBox"></div>
 </div>
@@ -130,7 +130,7 @@ canvas{width:100%;max-width:900px;display:block;margin:0 auto;border-radius:8px;
 
 <div class="two">
   <div class="card"><h2>⑧ 인건비 구성 (월) <span class="q" data-t="tLab">?</span></h2>
-    <div class="tipbox" id="tLab">기본급: 정직원 월급 + 알바 시급 × 일한 시간. 일한 시간에서 휴게시간(4시간 이상 근무 시 30분, 8시간 이상 1시간)은 빠짐. 주휴수당: 주 15시간 이상 일하는 알바에게 주는 1일분 임금. 4대보험 사업주 부담: 급여의 약 11%(주 15시간 미만 알바는 약 1%). 퇴직금 적립: 1년 이상 근무를 가정해 월 급여의 1/12. 한 달 = 4.345주</div>
+    <div class="tipbox" id="tLab">기본급: 정직원 월급 × 정직원 수 + 알바 시급 × 일한 시간. 정직원 수는 정직원 칸들의 주간 근무시간 합을 40시간 단위로 나눈 값(올림). 일한 시간에서 휴게시간(4시간 이상 근무 시 30분, 8시간 이상 1시간)은 빠짐. 주휴수당: 주 15시간 이상 일하는 알바에게 주는 1일분 임금. 4대보험 사업주 부담: 급여의 약 11%(주 15시간 미만 알바는 약 1%). 퇴직금 적립: 1년 이상 근무를 가정해 월 급여의 1/12. 한 달 = 4.345주</div>
     <div class="tw"><table id="laborTbl"></table></div>
     <div class="tw" style="margin-top:10px"><table id="perTbl"></table></div></div>
   <div class="card"><h2>⑨ 월 손익 <span class="q" data-t="tPL2">?</span></h2>
@@ -183,21 +183,27 @@ function simulate(I,ST){
   });
   const revenue=slots.reduce((a,s)=>a+s.served*s.h*I.ticket*s.monthDays,0), potential=I.sales*10000;
   // 인건비
-  const tot={base:0,juhyu:0,ins:0,ret:0,hours:0}, per=[], warn=[];
+  const tot={base:0,juhyu:0,ins:0,ret:0,hours:0}, per=[], warn=[], ftH={kit:0,hall:0};
   slots.forEach(s=>{ C.roles.forEach(r=>{ const cnt=ST[s.k][r.k]; if(!cnt) return;
     const paidDay=s.h-brk(s.h), wkH=paidDay*s.days;
     let base,juhyu=0,ins,ret=0;
-    if(r.ft){ base=I.salary*10000; ins=base*C.insFull; ret=base/12;
-      if(wkH<40) warn.push(`${s.lab} ${r.lab}: 월급은 주 40시간 기준인데 주 ${wkH}시간만 근무`); }
+    if(s.h>8) warn.push(`${s.lab} ${r.lab}: 하루 ${s.h}시간 근무는 8시간 초과 (연장근로)`);
+    if(r.ft){ ftH[r.pos]+=wkH*cnt; per.push({slot:s.lab,role:r.lab,cnt,wkH,juhyu:false,one:null,all:null,ftSlot:true}); return; }
     else { base=wkH*I.wage*C.wk;
       if(wkH>=15){ juhyu=Math.min(wkH,40)/40*8*I.wage*C.wk; ins=(base+juhyu)*C.insFull; ret=(base+juhyu)/12; } else ins=base*C.insShort; }
-    if(s.h>8) warn.push(`${s.lab} ${r.lab}: 하루 ${s.h}시간 근무는 8시간 초과 (연장근로)`);
     const one=base+juhyu+ins+ret;
     tot.base+=base*cnt; tot.juhyu+=juhyu*cnt; tot.ins+=ins*cnt; tot.ret+=ret*cnt; tot.hours+=wkH*C.wk*cnt;
     per.push({slot:s.lab,role:r.lab,cnt,wkH,juhyu:juhyu>0,one,all:one*cnt}); }); });
+  // 정직원: 주방과 홀을 따로, 여러 칸의 주간 근무시간을 합산해 40시간마다 1명 (연장근로 없음)
+  const ftN={kit:0,hall:0};
+  [["kit","주방 정직원"],["hall","홀 정직원"]].forEach(([pos,lab])=>{ const H=Math.round(ftH[pos]*100)/100; if(!H) return;
+    const n=Math.ceil(H/40-1e-9); ftN[pos]=n; const base=I.salary*10000, ins=base*C.insFull, ret=base/12, one=base+ins+ret;
+    tot.base+=base*n; tot.ins+=ins*n; tot.ret+=ret*n; tot.hours+=H*C.wk;
+    per.push({slot:"정직원 합산",role:lab,cnt:n,wkH:H,juhyu:false,one,all:one*n,ftSum:true});
+    if(H<n*40) warn.push(`${lab}: ${n}명이 주 ${H}시간 근무, 월급은 1명당 주 40시간 기준 (남는 시간 ${Math.round((n*40-H)*10)/10}시간)`); });
   const labor=tot.base+tot.juhyu+tot.ins+tot.ret;
   const food=revenue*I.food/100, other=revenue*I.other/100, rent=I.rent*10000, op=revenue-food-rent-labor-other;
-  const ft=slots.reduce((a,s)=>a+ST[s.k].kf+ST[s.k].hf,0), pt=slots.reduce((a,s)=>a+ST[s.k].kp+ST[s.k].hp,0);
+  const ft=ftN.kit+ftN.hall, pt=slots.reduce((a,s)=>a+ST[s.k].kp+ST[s.k].hp,0);
   return {slots,revenue,potential,lost:potential-revenue,labor,tot,per,warn,food,other,rent,op,opRate:revenue>0?op/revenue:0,laborRate:revenue>0?labor/revenue:0,ft,pt,shortSlots:slots.filter(s=>s.st==="부족"||s.st==="운영불가").length};
 }
 if(typeof module!=="undefined") module.exports={C,simulate,validate};
@@ -267,7 +273,9 @@ function render(){
   const tt=R.tot;
   $("laborTbl").innerHTML=`<tr><th>항목</th><th>금액</th></tr><tr><td>기본급</td><td>${won(tt.base)}</td></tr><tr><td>주휴수당</td><td>${won(tt.juhyu)}</td></tr><tr><td>4대보험 사업주 부담</td><td>${won(tt.ins)}</td></tr><tr><td>퇴직금 적립</td><td>${won(tt.ret)}</td></tr><tr><th>합계</th><th>${won(R.labor)}</th></tr>`;
   let p=`<tr><th>시간대</th><th>구분</th><th>인원</th><th>1명 주간 근무</th><th>주휴수당</th><th>1명 월 인건비</th></tr>`;
-  R.per.forEach(x=>p+=`<tr><td>${x.slot}</td><td>${x.role}</td><td>${x.cnt}명</td><td>${h1(x.wkH)}시간</td><td>${x.role.includes("알바")?(x.juhyu?"있음":"없음 (15시간 미만)"):"-"}</td><td>${won(x.one)}</td></tr>`);
+  R.per.forEach(x=>p+= x.ftSlot?`<tr><td>${x.slot}</td><td>${x.role}</td><td>${x.cnt}명 자리</td><td>${h1(x.wkH*x.cnt)}시간</td><td>-</td><td class="sum">아래 정직원 합산에 포함</td></tr>`
+    : x.ftSum?`<tr style="background:#eef4fb"><td><b>${x.slot}</b></td><td>${x.role}</td><td><b>${x.cnt}명</b></td><td>${h1(x.wkH)}시간</td><td>-</td><td>${won(x.one)}</td></tr>`
+    :`<tr><td>${x.slot}</td><td>${x.role}</td><td>${x.cnt}명</td><td>${h1(x.wkH)}시간</td><td>${x.role.includes("알바")?(x.juhyu?"있음":"없음 (15시간 미만)"):"-"}</td><td>${won(x.one)}</td></tr>`);
   if(!R.per.length) p+=`<tr><td colspan="6" class="sum">배치한 인원 없음</td></tr>`;
   $("perTbl").innerHTML=p+(R.warn.length?`<tr><td colspan="6" style="text-align:left;color:#9a6a00;font-size:12px">${R.warn.join("<br>")}</td></tr>`:"");
   const row=(n,v)=>`<tr><td>${n}</td><td>${won(v)}</td><td>${R.revenue>0?pct(v/R.revenue):"-"}</td></tr>`;
@@ -315,7 +323,7 @@ function roundSheets(i){
   const st=[["시간대",...C.roles.map(x=>x.lab),"근무 시간","하루 손님","시간당 손님","주방 감당/시간","홀 감당/시간","하루 놓친 손님","회전율","상태"]];
   r.slots.forEach(s=>{ const n=rd.staff[s.k]; st.push([s.lab,n.kf,n.kp,n.hf,n.hp,s.h,Math.round(s.cust),Math.round(s.perH*10)/10,s.K,s.H,Math.round(s.lostCust),Math.round(s.turn*10)/10,s.st==="운영불가"?"운영 불가":s.st]); });
   const pr=[["시간대","구분","인원","1명 주간 근무 (시간)","주휴수당","1명 월 인건비 (만원)","합계 (만원)"]];
-  r.per.forEach(x=>pr.push([x.slot,x.role,x.cnt,x.wkH,x.role.includes("알바")?(x.juhyu?"있음":"없음"):"-",man(x.one),man(x.all)]));
+  r.per.forEach(x=>pr.push(x.ftSlot?[x.slot,x.role,x.cnt+"명 자리",x.wkH*x.cnt,"-","정직원 합산에 포함",""]:[x.slot,x.role,x.cnt,x.wkH,x.role.includes("알바")?(x.juhyu?"있음":"없음"):"-",man(x.one),man(x.all)]));
   r.warn.forEach(w=>pr.push([w]));
   return {rd,sum,st,pr};
 }
