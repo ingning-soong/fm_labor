@@ -91,10 +91,10 @@ canvas{width:100%;max-width:900px;display:block;margin:0 auto;border-radius:8px;
 
 <div class="card">
   <h2>③ 직원 1명이 감당할 수 있는 양과 급여 <span class="q" data-t="tCap">?</span></h2>
-  <div class="tipbox" id="tCap">직원 1명이 1시간 동안 최대로 처리할 수 있는 손님 수를 팀이 정함. 매장 방문 때 본 모습, 메뉴의 조리 시간, 주문 방식(키오스크 등)을 근거로 정할 것. 이 숫자를 크게 잡으면 적은 인원으로도 운영되는 것처럼 보이므로, 왜 그 숫자인지 설명할 수 있어야 함</div>
+  <div class="tipbox" id="tCap">직원 1명이 1시간 동안 최대로 처리할 수 있는 손님 수를 팀이 정함. 매장 방문 때 본 모습, 메뉴의 조리 시간, 주문 방식(키오스크 등)을 근거로 정할 것. 이 숫자를 크게 잡으면 적은 인원으로도 운영되는 것처럼 보이므로, 왜 그 숫자인지 설명할 수 있어야 함. 참고 예시: 주방은 커피 40, 치킨 20, 피자 20, 분식 30, 홀은 업종 관계없이 20</div>
   <div class="grid">
-    <label class="f">주방 직원 1명이 1시간에 처리하는 최대 주문 수<input id="capK" type="number" min="1" step="1"></label>
-    <label class="f">홀 직원 1명이 1시간에 응대하는 최대 손님 수<input id="capH" type="number" min="1" step="1"></label>
+    <label class="f">주방 직원 1명이 1시간에 처리하는 최대 주문 수<input id="capK" type="number" min="1" step="1" placeholder="예: 커피 40, 치킨 20, 피자 20, 분식 30"></label>
+    <label class="f">홀 직원 1명이 1시간에 응대하는 최대 손님 수<input id="capH" type="number" min="1" step="1" placeholder="예: 업종 관계없이 20"></label>
     <label class="f">알바 시급 (원)<input id="wage" type="number" min="0" step="10"></label>
     <label class="f">정직원 월급 (만원, 주 40시간 기준)<input id="salary" type="number" min="0" step="1"></label>
   </div>
