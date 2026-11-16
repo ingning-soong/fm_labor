@@ -140,8 +140,8 @@ canvas{width:100%;max-width:900px;display:block;margin:0 auto;border-radius:8px;
 
 <div class="card">
   <h2>⑩ 라운드 저장과 비교 <span class="q" data-t="tRd">?</span></h2>
-  <div class="tipbox" id="tRd">인원 배치나 가정을 바꿀 때마다 결과가 바로 다시 계산됨. 비교하고 싶은 결과를 최대 5개까지 저장. 같은 내용은 두 번 저장되지 않음. 입력 내용은 이 컴퓨터의 이 브라우저에만 남으므로 수업이 끝나기 전에 엑셀로 내려받을 것</div>
-  <div class="row" style="margin-bottom:10px"><button id="saveBtn" onclick="saveRound()">라운드 1로 저장</button><span class="sum" id="roundMsg"></span></div>
+  <div class="tipbox" id="tRd">인원 배치나 가정을 바꿀 때마다 결과가 바로 다시 계산됨. 비교하고 싶은 결과를 최대 5개까지 저장. 같은 내용은 두 번 저장되지 않음. 입력 내용은 이 컴퓨터의 이 브라우저에만 남으므로 수업이 끝나기 전에 엑셀로 내려받을 것. "전체 라운드 한 파일로 내려받기"를 누르면 라운드 비교 시트와 라운드별 시트가 한 파일에 담김</div>
+  <div class="row" style="margin-bottom:10px"><button id="saveBtn" onclick="saveRound()">라운드 1로 저장</button><button id="allBtn" class="ghost" onclick="downloadAll()" disabled>전체 라운드 한 파일로 내려받기</button><span class="sum" id="roundMsg"></span></div>
   <div class="tw"><table id="roundTbl"></table></div>
 </div>
 
@@ -298,12 +298,12 @@ function resetAll(){
 }
 function delRound(i){ if(!confirm("라운드 "+(i+1)+"을 삭제할지? 뒤 라운드 번호가 앞당겨짐")) return; S.rounds.splice(i,1); save(); renderRounds(); updSave(); }
 function renderRounds(){
-  const Rs=S.rounds; if(!Rs.length){ $("roundTbl").innerHTML=`<tr><td class="sum">저장한 라운드 없음</td></tr>`; return; }
+  const Rs=S.rounds; $("allBtn").disabled=!Rs.length; if(!Rs.length){ $("roundTbl").innerHTML=`<tr><td class="sum">저장한 라운드 없음</td></tr>`; return; }
   const rows=[["주방 감당 / 홀 감당",r=>r.inp.capK+" / "+r.inp.capH],["정직원 / 알바",r=>r.R.ft+"명 / "+r.R.pt+"명"],["월 인건비",r=>won(r.R.labor)],["인건비율",r=>pct(r.R.laborRate)],["놓친 매출",r=>won(r.R.lost)],["실제 매출",r=>won(r.R.revenue)],["영업이익",r=>won(r.R.op)],["영업이익률",r=>pct(r.R.opRate)],["부족한 시간대",r=>r.R.shortSlots+"곳"]];
   $("roundTbl").innerHTML=`<tr><th>항목</th>${Rs.map((_,i)=>`<th>라운드 ${i+1}</th>`).join("")}</tr>`+rows.map(x=>`<tr><td>${x[0]}</td>${Rs.map(r=>`<td>${x[1](r)}</td>`).join("")}</tr>`).join("")+
    `<tr><td></td>${Rs.map((_,i)=>`<td><button class="ghost" style="padding:4px 8px" onclick="downloadRound(${i})">엑셀 내려받기</button><br><button class="warn" style="margin-top:4px" onclick="delRound(${i})">삭제</button></td>`).join("")}</tr>`;
 }
-function downloadRound(i){
+function roundSheets(i){
   const rd=S.rounds[i], I=rd.inp, r=rd.R;
   const sum=[["인건비 시뮬레이터 결과","라운드 "+(i+1)],["저장 시각",rd.at],[],["팀",rd.team],["브랜드",rd.brand],["지점",rd.branch],[],
    ["손익 추정표 값"],["월 매출 (만원)",I.sales],["식재료비율 (%)",I.food],["월 임차료 (만원)",I.rent],["기타 비용 비율 (%)",I.other],[],
@@ -317,8 +317,27 @@ function downloadRound(i){
   const pr=[["시간대","구분","인원","1명 주간 근무 (시간)","주휴수당","1명 월 인건비 (만원)","합계 (만원)"]];
   r.per.forEach(x=>pr.push([x.slot,x.role,x.cnt,x.wkH,x.role.includes("알바")?(x.juhyu?"있음":"없음"):"-",man(x.one),man(x.all)]));
   r.warn.forEach(w=>pr.push([w]));
-  const blob=XLSX_W([{name:"요약",rows:sum},{name:"인원 배치와 운영",rows:st},{name:"인건비 내역",rows:pr}]);
-  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`인건비시뮬레이터_${rd.team||"팀"}_라운드${i+1}.xlsx`; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  return {rd,sum,st,pr};
+}
+function dl(blob,name){ const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500); }
+function downloadRound(i){
+  const {rd,sum,st,pr}=roundSheets(i);
+  dl(XLSX_W([{name:"요약",rows:sum},{name:"인원 배치와 운영",rows:st},{name:"인건비 내역",rows:pr}]),`인건비시뮬레이터_${rd.team||"팀"}_라운드${i+1}.xlsx`);
+}
+function downloadAll(){
+  const Rs=S.rounds; if(!Rs.length) return;
+  const H=["항목",...Rs.map((_,i)=>"라운드 "+(i+1))];
+  const col=f=>Rs.map(f);
+  const cmp=[["인건비 시뮬레이터 라운드 비교"],["팀",S.team],["브랜드",S.brand],["지점",S.branch],[],H,["저장 시각",...col(r=>r.at)],[],["인원 배치 (명)"]];
+  C.slots.forEach(sl=>C.roles.forEach(ro=>cmp.push([sl.lab+" "+ro.lab,...col(r=>r.staff[sl.k][ro.k])])));
+  cmp.push([],["입력값"]);
+  [["월 매출 (만원)","sales"],["식재료비율 (%)","food"],["월 임차료 (만원)","rent"],["기타 비용 비율 (%)","other"],["객단가 (원)","ticket"],["주말 배수","weMult"],["점심 손님 비중 (%)","lunch"],["포장 비중 (%)","to"],["배달 비중 (%)","del"],["테이블 수 (4인석)","tables"],["점심 근무 시간","hL"],["저녁 근무 시간","hD"],["주방 1명 최대 주문 수/시간","capK"],["홀 1명 최대 손님 수/시간","capH"],["알바 시급 (원)","wage"],["정직원 월급 (만원)","salary"]].forEach(([l,k])=>cmp.push([l,...col(r=>r.inp[k])]));
+  cmp.push([],["결과"]);
+  [["정직원 (명)",r=>r.R.ft],["알바 (명)",r=>r.R.pt],["월 인건비 (만원)",r=>man(r.R.labor)],["인건비율 (%)",r=>Math.round(r.R.laborRate*1000)/10],["손님을 모두 받았을 때 매출 (만원)",r=>man(r.R.potential)],["놓친 매출 (만원)",r=>man(r.R.lost)],["실제 매출 (만원)",r=>man(r.R.revenue)],["영업이익 (만원)",r=>man(r.R.op)],["영업이익률 (%)",r=>Math.round(r.R.opRate*1000)/10],["부족한 시간대 (곳)",r=>r.R.shortSlots],
+   ["기본급 (만원)",r=>man(r.R.tot.base)],["주휴수당 (만원)",r=>man(r.R.tot.juhyu)],["4대보험 사업주 부담 (만원)",r=>man(r.R.tot.ins)],["퇴직금 적립 (만원)",r=>man(r.R.tot.ret)]].forEach(([l,f])=>cmp.push([l,...col(f)]));
+  const sheets=[{name:"라운드 비교",rows:cmp}];
+  Rs.forEach((_,i)=>{ const {sum,st,pr}=roundSheets(i); sheets.push({name:"라운드 "+(i+1),rows:[...sum,[],["인원 배치와 운영"],...st,[],["인건비 내역"],...pr]}); });
+  dl(XLSX_W(sheets),`인건비시뮬레이터_${S.team||"팀"}_전체라운드.xlsx`);
 }
 
 /* ---------- 매장 애니메이션 (홀) ---------- */
