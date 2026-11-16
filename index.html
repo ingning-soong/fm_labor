@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>인건비 시뮬레이터 | 외식경영관리론</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#1d2433;--sub:#5d6678;--line:#e3e6ec;--brand:#2f5d8a;--input:#fff8d6;--red:#e5484d}
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.5}
+header{background:var(--brand);color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+header h1{font-size:18px;margin:0}
+header .sub{font-size:12px;opacity:.85}
+main{max-width:1180px;margin:0 auto;padding:16px 20px 60px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin-bottom:14px}
+.card h2{font-size:16px;margin:0 0 8px;color:var(--brand)}
+.hint{color:var(--sub);font-size:12.5px;margin:0 0 10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px 16px}
+label.f{display:flex;flex-direction:column;font-size:12.5px;color:var(--sub);gap:3px}
+input,select{font:inherit;padding:6px 8px;border:1px solid #cfd4dc;border-radius:6px;background:var(--input);color:var(--ink);min-width:0}
+button{font:inherit;padding:7px 14px;border-radius:6px;border:1px solid var(--brand);background:var(--brand);color:#fff;cursor:pointer;font-weight:600}
+button.ghost{background:#fff;color:var(--brand)}
+button.warn{background:#fff;color:var(--red);border-color:var(--red);padding:4px 10px}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.slot{background:#fff;color:var(--brand);padding:6px 12px}
+button.slot.on{background:var(--brand);color:#fff}
+table{border-collapse:collapse;width:100%}
+th,td{border:1px solid var(--line);padding:6px;text-align:center;vertical-align:middle}
+th{background:#f2f4f7;font-weight:600;font-size:12.5px}
+td input[type=number]{width:62px;text-align:center}
+.tw{overflow-x:auto}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.msg{padding:8px 12px;border-radius:6px;margin:6px 0;font-size:13px}
+.msg.err{background:#fdecec;color:#a4282c}
+.sum{font-size:12px;color:var(--sub)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.kpi{border:1px solid var(--line);border-radius:8px;padding:10px 12px;background:#fbfcfd}
+.kpi .k{font-size:12px;color:var(--sub)}
+.kpi .v{font-size:20px;font-weight:700}
+.kpi .v.neg{color:var(--red)}
+.st-부족,.st-운영불가{background:#f8c9cb}.st-적정{background:#c6ebd5}.st-여유{background:#e6e8ec}.st-빠듯함{background:#fde3b3}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:860px){.two{grid-template-columns:1fr}}
+.q{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;border-radius:50%;background:#dfe7f1;color:var(--brand);font-size:11px;font-weight:700;cursor:pointer;margin-left:4px;vertical-align:1px;user-select:none}
+.tipbox{display:none;background:#f3f7fc;border:1px solid #cddcee;border-radius:6px;padding:8px 10px;font-size:12.5px;color:#24476b;margin:6px 0;text-align:left;font-weight:400}
+.tipbox.on{display:block}
+canvas{width:100%;max-width:900px;display:block;margin:0 auto;border-radius:8px;background:#fdfaf3;border:1px solid var(--line)}
+.counters{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:13px;margin-top:8px}
+.counters b{font-size:16px}
+.foot{font-size:11.5px;color:var(--sub);margin-top:8px}
+.formula{background:#f7f8fa;border-radius:6px;padding:8px 10px;font-size:12.5px;color:#333;margin-top:8px}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>인건비 시뮬레이터</h1><div class="sub">외식경영관리론 | 인력 관리와 매장 운영 워크숍</div></div>
+  <div class="row"><span class="sub" id="teamLabel"></span><button class="warn" style="background:#fff" onclick="resetAll()">처음부터 다시 (전체 리셋)</button></div>
+</header>
+<main>
+<div class="card">
+  <h2>① 우리 지점</h2>
+  <div class="grid">
+    <label class="f">팀<input id="team" placeholder="예: 3팀"></label>
+    <label class="f">브랜드<input id="brand" placeholder="예: 메가MGC커피"></label>
+    <label class="f">지점<input id="branch" placeholder="예: 신촌점"></label>
+  </div>
+  <h3 style="font-size:14px;margin:14px 0 6px">손익 추정표에서 옮길 값 <span class="q" data-t="tPL">?</span></h3>
+  <div class="tipbox" id="tPL">지난주 손익 추정표(STEP 5)의 숫자를 그대로 입력. 인건비 말고 나머지 비용은 이미 정해져 있으므로, 이번에는 인원 배치만 바꾸며 인건비와 영업이익이 어떻게 변하는지 확인</div>
+  <div class="grid">
+    <label class="f">월 매출 (만원)<input id="sales" type="number" min="0"></label>
+    <label class="f">식재료비율 (%)<input id="food" type="number" min="0" max="100" step="0.1"></label>
+    <label class="f">월 임차료 (만원)<input id="rent" type="number" min="0"></label>
+    <label class="f">기타 비용 비율 (%)<input id="other" type="number" min="0" max="100" step="0.1"></label>
+  </div>
+</div>
+
+<div class="card">
+  <h2>② 손님과 근무 시간 <span class="q" data-t="tCust">?</span></h2>
+  <div class="tipbox" id="tCust">월 매출을 객단가로 나누면 한 달 손님 수. 이 손님을 주중과 주말(주말 배수), 점심과 저녁(점심 손님 비중)으로 나누고, 근무 시간으로 나누어 시간당 손님 수를 계산. 매장 손님은 자리에 앉고 홀 직원과 주방 일이 모두 필요. 포장 손님은 앉지 않지만 카운터 응대(홀 직원)와 주방 일이 필요. 배달 손님은 주방 일만 필요. 테이블 수는 회전율 계산과 매장 그림에 쓰임</div>
+  <div class="grid">
+    <label class="f">객단가 (원)<input id="ticket" type="number" min="0" step="100"></label>
+    <label class="f">주말 배수 (주말 하루 ÷ 주중 하루)<input id="weMult" type="number" min="0.3" max="3" step="0.05"></label>
+    <label class="f">점심 손님 비중 (%)<input id="lunch" type="number" min="0" max="100" step="1"></label>
+    <label class="f">포장 비중 (%)<input id="to" type="number" min="0" max="100" step="1"></label>
+    <label class="f">배달 비중 (%)<input id="del" type="number" min="0" max="100" step="1"></label>
+    <label class="f">테이블 수 (4인석 기준)<input id="tables" type="number" min="1" step="1"></label>
+    <label class="f">점심 근무 시간 (시간, 오픈 준비 포함)<input id="hL" type="number" min="1" max="14" step="0.5"></label>
+    <label class="f">저녁 근무 시간 (시간, 마감 정리 포함)<input id="hD" type="number" min="1" max="14" step="0.5"></label>
+  </div>
+</div>
+
+<div class="card">
+  <h2>③ 직원 1명이 감당할 수 있는 양과 급여 <span class="q" data-t="tCap">?</span></h2>
+  <div class="tipbox" id="tCap">직원 1명이 1시간 동안 최대로 처리할 수 있는 손님 수를 팀이 정함. 매장 방문 때 본 모습, 메뉴의 조리 시간, 주문 방식(키오스크 등)을 근거로 정할 것. 이 숫자를 크게 잡으면 적은 인원으로도 운영되는 것처럼 보이므로, 왜 그 숫자인지 설명할 수 있어야 함</div>
+  <div class="grid">
+    <label class="f">주방 직원 1명이 1시간에 처리하는 최대 주문 수<input id="capK" type="number" min="1" step="1"></label>
+    <label class="f">홀 직원 1명이 1시간에 응대하는 최대 손님 수<input id="capH" type="number" min="1" step="1"></label>
+    <label class="f">알바 시급 (원)<input id="wage" type="number" min="0" step="10"></label>
+    <label class="f">정직원 월급 (만원, 주 40시간 기준)<input id="salary" type="number" min="0" step="1"></label>
+  </div>
+</div>
+
+<div class="card">
+  <h2>④ 인원 배치 <span class="q" data-t="tStaff">?</span></h2>
+  <div class="tipbox" id="tStaff">각 칸은 그 시간대에 동시에 일하는 사람 수. 주중 칸에 넣은 사람은 월~금 5일, 주말 칸에 넣은 사람은 토·일 2일 일한다고 계산. 다른 칸의 사람은 서로 다른 사람으로 봄. 주방과 홀에 최소 1명씩은 있어야 영업 가능</div>
+  <div class="tw"><table id="staffTbl"></table></div>
+  <div id="errBox"></div>
+</div>
+
+<div id="out" style="display:none">
+<div class="card">
+  <h2>⑤ 한 달 결과</h2>
+  <div class="kpis" id="kpis"></div>
+</div>
+
+<div class="card">
+  <h2>⑥ 매장 모습 <span class="q" data-t="tAnim">?</span></h2>
+  <div class="tipbox" id="tAnim">위에서 계산한 시간당 손님 수와 인원으로 홀을 움직여 보는 그림. 1시간을 30초로 줄여서 보여 줌. 모자와 앞치마를 한 초록색 사람이 홀 직원. 손님은 1~4명이 한 팀으로 들어와 4인 테이블에 앉고, 약 1시간 머문 뒤 나감. 포장 손님은 카운터에서 받아 바로 나가고, 배달은 입구의 주황 상자로 표시. 자리가 없으면 입구에 줄을 서고, 주문을 오래 기다리거나 음식이 늦게 나오면 표정이 바뀌다가 빨갛게 변하며 컴플레인(!)을 남김. 주방은 그림에 없지만 주방 인원이 모자라면 "조리 중"이 길어짐. 매번 조금씩 다르게 움직이므로 숫자는 위의 계산 결과를 기준으로 볼 것</div>
+  <div class="row" style="justify-content:center;margin-bottom:8px" id="slotBtns"></div>
+  <canvas id="cv" width="900" height="470"></canvas>
+  <div class="counters" id="counters"></div>
+</div>
+
+<div class="card">
+  <h2>⑦ 시간대별 운영 <span class="q" data-t="tSlot">?</span></h2>
+  <div class="tipbox" id="tSlot">감당할 수 있는 손님 = 인원 × 1명이 처리하는 최대 손님 수. 시간당 손님이 이보다 많으면 넘친 만큼 손님을 놓침(부족). 바쁜 정도 = 시간당 손님 ÷ 감당할 수 있는 손님. 50% 미만이면 여유(인건비가 남는 상태). 회전율은 그 시간대에 한 좌석에 손님이 몇 번 앉았는지. 좌석 부족이 뜨면 직원을 늘려도 앉을 자리가 없어 이 매출을 내기 어렵다는 뜻</div>
+  <div class="tw"><table id="slotTbl"></table></div>
+  <div class="formula">시간당 손님 = 그 시간대 하루 매출 ÷ 객단가 ÷ 근무 시간 · 놓친 매출 = 놓친 손님 × 객단가 · 회전율 = 그 시간대 매장 손님(포장·배달 제외) ÷ 좌석 수(테이블 × 4) · 좌석 부족: 손님 1팀이 1시간 머문다고 볼 때 시간당 매장 손님이 좌석 수보다 많음</div>
+</div>
+
+<div class="two">
+  <div class="card"><h2>⑧ 인건비 구성 (월) <span class="q" data-t="tLab">?</span></h2>
+    <div class="tipbox" id="tLab">기본급: 정직원 월급 + 알바 시급 × 일한 시간. 일한 시간에서 휴게시간(4시간 이상 근무 시 30분, 8시간 이상 1시간)은 빠짐. 주휴수당: 주 15시간 이상 일하는 알바에게 주는 1일분 임금. 4대보험 사업주 부담: 급여의 약 11%(주 15시간 미만 알바는 약 1%). 퇴직금 적립: 1년 이상 근무를 가정해 월 급여의 1/12. 한 달 = 4.345주</div>
+    <div class="tw"><table id="laborTbl"></table></div>
+    <div class="tw" style="margin-top:10px"><table id="perTbl"></table></div></div>
+  <div class="card"><h2>⑨ 월 손익 <span class="q" data-t="tPL2">?</span></h2>
+    <div class="tipbox" id="tPL2">실제 매출 = 손님을 모두 받았을 때 매출 − 놓친 매출. 식재료비와 기타 비용은 실제 매출에 비율을 곱하고, 임차료는 매출과 관계없이 고정</div>
+    <div class="tw"><table id="plTbl"></table></div></div>
+</div>
+
+<div class="card">
+  <h2>⑩ 라운드 저장과 비교 <span class="q" data-t="tRd">?</span></h2>
+  <div class="tipbox" id="tRd">인원 배치나 가정을 바꿀 때마다 결과가 바로 다시 계산됨. 비교하고 싶은 결과를 최대 5개까지 저장. 같은 내용은 두 번 저장되지 않음. 입력 내용은 이 컴퓨터의 이 브라우저에만 남으므로 수업이 끝나기 전에 엑셀로 내려받을 것</div>
+  <div class="row" style="margin-bottom:10px"><button id="saveBtn" onclick="saveRound()">라운드 1로 저장</button><span class="sum" id="roundMsg"></span></div>
+  <div class="tw"><table id="roundTbl"></table></div>
+</div>
+
+<div class="foot">교육용 단순화: 손님은 시간대 안에서 고르게 온다고 가정, 연장근로 가산과 5인 이상 사업장 규정은 계산하지 않고 경고만 표시. 실제 매장과 다를 수 있음</div>
+</div>
+</main>
+
+<!-- ================= ENGINE ================= -->
+<script id="engine">
+const C={dwell:1,wdM:21.73, weM:8.69, wk:4.345, insFull:0.11, insShort:0.01,
+  slots:[{k:"wdL",lab:"주중 점심",we:false,lunch:true},{k:"wdD",lab:"주중 저녁",we:false,lunch:false},{k:"weL",lab:"주말 점심",we:true,lunch:true},{k:"weD",lab:"주말 저녁",we:true,lunch:false}],
+  roles:[{k:"kf",lab:"주방 정직원",pos:"kit",ft:true},{k:"kp",lab:"주방 알바",pos:"kit",ft:false},{k:"hf",lab:"홀 정직원",pos:"hall",ft:true},{k:"hp",lab:"홀 알바",pos:"hall",ft:false}]};
+function brk(h){ return h>=8?1:(h>=4?0.5:0); }
+function validate(I){
+  const e=[];
+  const need={sales:"월 매출",food:"식재료비율",rent:"월 임차료",other:"기타 비용 비율",ticket:"객단가",weMult:"주말 배수",lunch:"점심 손님 비중",to:"포장 비중",del:"배달 비중",tables:"테이블 수",hL:"점심 근무 시간",hD:"저녁 근무 시간",capK:"주방 직원 1명의 최대 주문 수",capH:"홀 직원 1명의 최대 손님 수",wage:"알바 시급",salary:"정직원 월급"};
+  Object.keys(need).forEach(k=>{ if(I[k]===null||I[k]===undefined||isNaN(I[k])) e.push(need[k]+" 입력"); });
+  if(e.length) return e;
+  if(I.wage<10320) e.push("알바 시급이 2026년 최저임금(10,320원)보다 낮음");
+  if(I.salary*10000<2156880) e.push("정직원 월급이 2026년 최저임금 월 환산액(215.7만원)보다 낮음");
+  if(I.lunch<0||I.lunch>100||I.del<0||I.to<0) e.push("비중은 0~100");
+  if(I.to+I.del>100) e.push("포장 비중과 배달 비중의 합은 100 이하");
+  if(I.tables<1) e.push("테이블은 1개 이상");
+  return e;
+}
+function simulate(I,ST){
+  const D=I.sales*10000/(C.wdM+C.weM*I.weMult), del=I.del/100, to=I.to/100, seats=I.tables*4;
+  const slots=C.slots.map(s=>{
+    const n=ST[s.k], h=s.lunch?I.hL:I.hD, daySales=(s.we?D*I.weMult:D)*(s.lunch?I.lunch:100-I.lunch)/100;
+    const cust=daySales/I.ticket, perH=cust/h;
+    const nk=n.kf+n.kp, nh=n.hf+n.hp, K=nk*I.capK, H=nh*I.capH;
+    const dine=perH*(1-del-to), take=perH*to, inst=dine+take, dl=perH*del;
+    const hallServed=Math.min(inst,H), load=dl+hallServed, served=Math.min(load,K);
+    const turn=dine*h/seats, seatOver=dine>seats/C.dwell;
+    const ratio=perH>0?served/perH:1, lostCust=(perH-served)*h;
+    const busyK=K>0?load/K:Infinity, busyH=H>0?inst/H:(inst>0?Infinity:0);
+    let st; if(nk===0||(nh===0&&inst>0)) st="운영불가"; else if(ratio<0.95) st="부족"; else if(ratio<0.999) st="빠듯함"; else if(Math.max(load/K, inst>0?inst/H:0)<0.5) st="여유"; else st="적정";
+    return {...s,h,daySales,cust,perH,nk,nh,K,H,inst,dine,take,dl,turn,seatOver,served,ratio,lostCust,lostSales:lostCust*I.ticket,busyK,busyH,st,days:s.we?2:5,monthDays:s.we?C.weM:C.wdM};
+  });
+  const revenue=slots.reduce((a,s)=>a+s.served*s.h*I.ticket*s.monthDays,0), potential=I.sales*10000;
+  // 인건비
+  const tot={base:0,juhyu:0,ins:0,ret:0,hours:0}, per=[], warn=[];
+  slots.forEach(s=>{ C.roles.forEach(r=>{ const cnt=ST[s.k][r.k]; if(!cnt) return;
+    const paidDay=s.h-brk(s.h), wkH=paidDay*s.days;
+    let base,juhyu=0,ins,ret=0;
+    if(r.ft){ base=I.salary*10000; ins=base*C.insFull; ret=base/12;
+      if(wkH<40) warn.push(`${s.lab} ${r.lab}: 월급은 주 40시간 기준인데 주 ${wkH}시간만 근무`); }
+    else { base=wkH*I.wage*C.wk;
+      if(wkH>=15){ juhyu=Math.min(wkH,40)/40*8*I.wage*C.wk; ins=(base+juhyu)*C.insFull; ret=(base+juhyu)/12; } else ins=base*C.insShort; }
+    if(s.h>8) warn.push(`${s.lab} ${r.lab}: 하루 ${s.h}시간 근무는 8시간 초과 (연장근로)`);
+    const one=base+juhyu+ins+ret;
+    tot.base+=base*cnt; tot.juhyu+=juhyu*cnt; tot.ins+=ins*cnt; tot.ret+=ret*cnt; tot.hours+=wkH*C.wk*cnt;
+    per.push({slot:s.lab,role:r.lab,cnt,wkH,juhyu:juhyu>0,one,all:one*cnt}); }); });
+  const labor=tot.base+tot.juhyu+tot.ins+tot.ret;
+  const food=revenue*I.food/100, other=revenue*I.other/100, rent=I.rent*10000, op=revenue-food-rent-labor-other;
+  const ft=slots.reduce((a,s)=>a+ST[s.k].kf+ST[s.k].hf,0), pt=slots.reduce((a,s)=>a+ST[s.k].kp+ST[s.k].hp,0);
+  return {slots,revenue,potential,lost:potential-revenue,labor,tot,per,warn,food,other,rent,op,opRate:revenue>0?op/revenue:0,laborRate:revenue>0?labor/revenue:0,ft,pt,shortSlots:slots.filter(s=>s.st==="부족"||s.st==="운영불가").length};
+}
+if(typeof module!=="undefined") module.exports={C,simulate,validate};
+</script>
+
+<!-- ================= XLSX ================= -->
+<script>
+const XLSX_W=(function(){const enc=new TextEncoder();const T=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+const crc=b=>{let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=T[(c^b[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;};
+const esc=s=>String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+const col=i=>{let s="";i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+function sx(rows){let x='<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>';rows.forEach((r,ri)=>{x+=`<row r="${ri+1}">`;r.forEach((v,ci)=>{if(v===null||v===undefined||v==="")return;const ref=col(ci)+(ri+1);if(typeof v==="number"&&isFinite(v))x+=`<c r="${ref}"><v>${Math.round(v*10000)/10000}</v></c>`;else x+=`<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${esc(v)}</t></is></c>`;});x+="</row>";});return x+"</sheetData></worksheet>";}
+function zip(files){const parts=[],cd=[];let off=0;files.forEach(f=>{const name=enc.encode(f.name),data=enc.encode(f.data),c=crc(data);const h=new DataView(new ArrayBuffer(30));h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint32(14,c,true);h.setUint32(18,data.length,true);h.setUint32(22,data.length,true);h.setUint16(26,name.length,true);parts.push(new Uint8Array(h.buffer),name,data);const e=new DataView(new ArrayBuffer(46));e.setUint32(0,0x02014b50,true);e.setUint16(4,20,true);e.setUint16(6,20,true);e.setUint16(8,0x0800,true);e.setUint32(16,c,true);e.setUint32(20,data.length,true);e.setUint32(24,data.length,true);e.setUint16(28,name.length,true);e.setUint32(42,off,true);cd.push(new Uint8Array(e.buffer),name);off+=30+name.length+data.length;});let cdl=0;cd.forEach(p=>cdl+=p.length);const end=new DataView(new ArrayBuffer(22));end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);end.setUint32(12,cdl,true);end.setUint32(16,off,true);return new Blob([...parts,...cd,new Uint8Array(end.buffer)],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});}
+return function(sheets){const f=[];f.push({name:"[Content_Types].xml",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'+sheets.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")+'</Types>'});
+f.push({name:"_rels/.rels",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'});
+f.push({name:"xl/workbook.xml",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>'+sheets.map((s,i)=>`<sheet name="${esc(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")+'</sheets></workbook>'});
+f.push({name:"xl/_rels/workbook.xml.rels",data:'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")+'</Relationships>'});
+sheets.forEach((s,i)=>f.push({name:`xl/worksheets/sheet${i+1}.xml`,data:sx(s.rows)}));return zip(f);};})();
+</script>
+
+<!-- ================= UI ================= -->
+<script>
+const KEY="fm12_labor_simple_v1", MAXR=5;
+const FIELDS=["sales","food","rent","other","ticket","weMult","lunch","to","del","tables","hL","hD","capK","capH","wage","salary"];
+let S, R=null, viewSlot=0;
+const $=id=>document.getElementById(id);
+const num=v=>(v===""||v==null)?null:+v;
+const man=v=>Math.round(v/10000);
+const won=v=>man(v).toLocaleString()+"만원";
+const pct=v=>isFinite(v)?(v*100).toFixed(1)+"%":"-";
+const h1=v=>(Math.round(v*10)/10).toLocaleString();
+function blank(){ const st={}; C.slots.forEach(s=>st[s.k]={kf:0,kp:0,hf:0,hp:0});
+  return {team:"",brand:"",branch:"",inp:{sales:null,food:null,rent:null,other:null,ticket:null,weMult:null,lunch:null,to:null,del:null,tables:null,hL:null,hD:null,capK:null,capH:null,wage:10320,salary:216},staff:st,rounds:[]}; }
+function load(){ try{const t=localStorage.getItem(KEY); if(t) return JSON.parse(t);}catch(e){} return null; }
+function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} }
+function init(){
+  S=load()||blank();
+  let t=`<tr><th>시간대</th>${C.roles.map(r=>`<th>${r.lab}</th>`).join("")}<th>주방 합계</th><th>홀 합계</th></tr>`;
+  C.slots.forEach(s=>{ t+=`<tr><td><b>${s.lab}</b><br><span class="sum">${s.we?"토·일 2일":"월~금 5일"}</span></td>`+C.roles.map(r=>`<td><input type="number" min="0" step="1" data-s="${s.k}" data-r="${r.k}"></td>`).join("")+`<td id="sk_${s.k}"></td><td id="sh_${s.k}"></td></tr>`; });
+  $("staffTbl").innerHTML=t;
+  $("slotBtns").innerHTML=C.slots.map((s,i)=>`<button class="slot ${i===0?"on":""}" onclick="pickSlot(${i})">${s.lab}</button>`).join("");
+  document.querySelectorAll(".q").forEach(q=>q.addEventListener("click",()=>$(q.dataset.t).classList.toggle("on")));
+  ["team","brand","branch"].forEach(k=>$(k).value=S[k]); FIELDS.forEach(k=>$(k).value=S.inp[k]??"");
+  document.querySelectorAll("[data-s]").forEach(el=>el.value=S.staff[el.dataset.s][el.dataset.r]);
+  document.querySelectorAll("input").forEach(el=>el.addEventListener("input",update));
+  update(); renderRounds(); requestAnimationFrame(loop);
+}
+function update(){
+  ["team","brand","branch"].forEach(k=>S[k]=$(k).value); FIELDS.forEach(k=>S.inp[k]=num($(k).value));
+  document.querySelectorAll("[data-s]").forEach(el=>S.staff[el.dataset.s][el.dataset.r]=Math.max(0,Math.floor(num(el.value)||0)));
+  C.slots.forEach(s=>{ const n=S.staff[s.k]; $("sk_"+s.k).textContent=(n.kf+n.kp)+"명"; $("sh_"+s.k).textContent=(n.hf+n.hp)+"명"; });
+  $("teamLabel").textContent=[S.team,S.brand,S.branch].filter(Boolean).join(" · ");
+  save();
+  const e=validate(S.inp);
+  if(e.length){ $("errBox").innerHTML=`<div class="msg err">결과를 보려면: ${e.join(", ")}</div>`; $("out").style.display="none"; R=null; return; }
+  $("errBox").innerHTML=""; R=simulate(S.inp,S.staff); render(); resetAnim();
+}
+function render(){
+  $("out").style.display="";
+  const k=(t,v,neg)=>`<div class="kpi"><div class="k">${t}</div><div class="v ${neg?"neg":""}">${v}</div></div>`;
+  $("kpis").innerHTML=k("월 인건비",won(R.labor))+k("인건비율",pct(R.laborRate))+k("실제 매출",won(R.revenue))+
+    k("놓친 매출",won(R.lost)+" ("+pct(R.lost/R.potential)+")",R.lost>1)+k("영업이익",won(R.op),R.op<0)+k("영업이익률",pct(R.opRate),R.op<0)+
+    k("정직원 / 알바",R.ft+"명 / "+R.pt+"명")+k("부족한 시간대",R.shortSlots+"곳",R.shortSlots>0);
+  let t=`<tr><th>시간대</th><th>근무 시간</th><th>하루 손님</th><th>시간당 손님</th><th>주방 인원</th><th>주방이 감당할 수 있는 주문/시간</th><th>홀 인원</th><th>홀이 감당할 수 있는 손님/시간</th><th>주방 바쁨</th><th>홀 바쁨</th><th>하루 놓친 손님</th><th>회전율</th><th>상태</th></tr>`;
+  R.slots.forEach(s=>{ t+=`<tr><td>${s.lab}</td><td>${s.h}시간</td><td>${Math.round(s.cust)}명</td><td>${h1(s.perH)}명</td><td>${s.nk}명</td><td>${s.K}</td><td>${s.nh}명</td><td>${s.H}</td><td>${pct(s.busyK)}</td><td>${s.inst>0?pct(s.busyH):"-"}</td><td>${Math.round(s.lostCust)}명</td><td${s.seatOver?' style="color:#e5484d;font-weight:700"':''}>${h1(s.turn)}회${s.seatOver?"<br>좌석 부족":""}</td><td class="st-${s.st}"><b>${s.st==="운영불가"?"운영 불가":s.st}</b></td></tr>`; });
+  $("slotTbl").innerHTML=t;
+  const tt=R.tot;
+  $("laborTbl").innerHTML=`<tr><th>항목</th><th>금액</th></tr><tr><td>기본급</td><td>${won(tt.base)}</td></tr><tr><td>주휴수당</td><td>${won(tt.juhyu)}</td></tr><tr><td>4대보험 사업주 부담</td><td>${won(tt.ins)}</td></tr><tr><td>퇴직금 적립</td><td>${won(tt.ret)}</td></tr><tr><th>합계</th><th>${won(R.labor)}</th></tr>`;
+  let p=`<tr><th>시간대</th><th>구분</th><th>인원</th><th>1명 주간 근무</th><th>주휴수당</th><th>1명 월 인건비</th></tr>`;
+  R.per.forEach(x=>p+=`<tr><td>${x.slot}</td><td>${x.role}</td><td>${x.cnt}명</td><td>${h1(x.wkH)}시간</td><td>${x.role.includes("알바")?(x.juhyu?"있음":"없음 (15시간 미만)"):"-"}</td><td>${won(x.one)}</td></tr>`);
+  if(!R.per.length) p+=`<tr><td colspan="6" class="sum">배치한 인원 없음</td></tr>`;
+  $("perTbl").innerHTML=p+(R.warn.length?`<tr><td colspan="6" style="text-align:left;color:#9a6a00;font-size:12px">${R.warn.join("<br>")}</td></tr>`:"");
+  const row=(n,v)=>`<tr><td>${n}</td><td>${won(v)}</td><td>${R.revenue>0?pct(v/R.revenue):"-"}</td></tr>`;
+  $("plTbl").innerHTML=`<tr><th>항목</th><th>금액</th><th>매출 대비</th></tr><tr><td>손님을 모두 받았을 때 매출</td><td>${won(R.potential)}</td><td></td></tr><tr><td>놓친 매출</td><td>${won(R.lost)}</td><td></td></tr>
+   ${row("실제 매출",R.revenue)}${row("식재료비",R.food)}${row("임차료",R.rent)}${row("인건비",R.labor)}${row("기타 비용",R.other)}<tr><th>영업이익</th><th>${won(R.op)}</th><th>${pct(R.opRate)}</th></tr>`;
+  updSave();
+}
+/* ---------- rounds ---------- */
+function snapKey(){ return JSON.stringify([S.inp,S.staff]); }
+function updSave(){ const n=S.rounds.length+1, b=$("saveBtn"); b.textContent=n>MAXR?"5개 모두 저장됨":"라운드 "+n+"로 저장"; b.disabled=!R||n>MAXR; }
+function saveRound(){
+  if(!R||S.rounds.length>=MAXR) return;
+  const key=snapKey(), same=S.rounds.findIndex(r=>r.key===key);
+  if(same>=0){ $("roundMsg").textContent="라운드 "+(same+1)+"과 같은 내용이라 저장하지 않음. 인원이나 가정을 바꾼 뒤 저장"; return; }
+  S.rounds.push({key,at:new Date().toLocaleString("ko-KR"),team:S.team,brand:S.brand,branch:S.branch,inp:JSON.parse(JSON.stringify(S.inp)),staff:JSON.parse(JSON.stringify(S.staff)),R:JSON.parse(JSON.stringify(R,(k,v)=>v===Infinity?null:v))});
+  save(); renderRounds(); updSave(); $("roundMsg").textContent="라운드 "+S.rounds.length+" 저장 완료";
+}
+function resetAll(){
+  if(!confirm("입력한 값, 인원 배치, 저장한 라운드가 모두 지워짐. 엑셀로 내려받지 않은 라운드는 되살릴 수 없음. 처음부터 다시 시작할지?")) return;
+  try{localStorage.removeItem(KEY);}catch(e){}
+  S=blank();
+  ["team","brand","branch"].forEach(k=>$(k).value="");
+  FIELDS.forEach(k=>$(k).value=S.inp[k]??"");
+  document.querySelectorAll("[data-s]").forEach(el=>el.value=0);
+  document.querySelectorAll(".tipbox.on").forEach(el=>el.classList.remove("on"));
+  $("roundMsg").textContent="";
+  pickSlot(0); update(); renderRounds(); window.scrollTo(0,0);
+}
+function delRound(i){ if(!confirm("라운드 "+(i+1)+"을 삭제할지? 뒤 라운드 번호가 앞당겨짐")) return; S.rounds.splice(i,1); save(); renderRounds(); updSave(); }
+function renderRounds(){
+  const Rs=S.rounds; if(!Rs.length){ $("roundTbl").innerHTML=`<tr><td class="sum">저장한 라운드 없음</td></tr>`; return; }
+  const rows=[["주방 감당 / 홀 감당",r=>r.inp.capK+" / "+r.inp.capH],["정직원 / 알바",r=>r.R.ft+"명 / "+r.R.pt+"명"],["월 인건비",r=>won(r.R.labor)],["인건비율",r=>pct(r.R.laborRate)],["놓친 매출",r=>won(r.R.lost)],["실제 매출",r=>won(r.R.revenue)],["영업이익",r=>won(r.R.op)],["영업이익률",r=>pct(r.R.opRate)],["부족한 시간대",r=>r.R.shortSlots+"곳"]];
+  $("roundTbl").innerHTML=`<tr><th>항목</th>${Rs.map((_,i)=>`<th>라운드 ${i+1}</th>`).join("")}</tr>`+rows.map(x=>`<tr><td>${x[0]}</td>${Rs.map(r=>`<td>${x[1](r)}</td>`).join("")}</tr>`).join("")+
+   `<tr><td></td>${Rs.map((_,i)=>`<td><button class="ghost" style="padding:4px 8px" onclick="downloadRound(${i})">엑셀 내려받기</button><br><button class="warn" style="margin-top:4px" onclick="delRound(${i})">삭제</button></td>`).join("")}</tr>`;
+}
+function downloadRound(i){
+  const rd=S.rounds[i], I=rd.inp, r=rd.R;
+  const sum=[["인건비 시뮬레이터 결과","라운드 "+(i+1)],["저장 시각",rd.at],[],["팀",rd.team],["브랜드",rd.brand],["지점",rd.branch],[],
+   ["손익 추정표 값"],["월 매출 (만원)",I.sales],["식재료비율 (%)",I.food],["월 임차료 (만원)",I.rent],["기타 비용 비율 (%)",I.other],[],
+   ["손님과 근무 시간"],["객단가 (원)",I.ticket],["주말 배수",I.weMult],["점심 손님 비중 (%)",I.lunch],["포장 비중 (%)",I.to],["배달 비중 (%)",I.del],["테이블 수 (4인석)",I.tables],["점심 근무 시간",I.hL],["저녁 근무 시간",I.hD],[],
+   ["팀의 가정"],["주방 1명 최대 주문 수/시간",I.capK],["홀 1명 최대 손님 수/시간",I.capH],["알바 시급 (원)",I.wage],["정직원 월급 (만원)",I.salary],[],
+   ["결과"],["정직원 (명)",r.ft],["알바 (명)",r.pt],["월 인건비 (만원)",man(r.labor)],["인건비율 (%)",r.laborRate*100],["손님을 모두 받았을 때 매출 (만원)",man(r.potential)],["놓친 매출 (만원)",man(r.lost)],["실제 매출 (만원)",man(r.revenue)],["영업이익 (만원)",man(r.op)],["영업이익률 (%)",r.opRate*100],[],
+   ["인건비 구성 (만원)"],["기본급",man(r.tot.base)],["주휴수당",man(r.tot.juhyu)],["4대보험 사업주 부담",man(r.tot.ins)],["퇴직금 적립",man(r.tot.ret)],[],
+   ["월 손익 (만원)","금액","매출 대비 (%)"],["실제 매출",man(r.revenue),100],["식재료비",man(r.food),r.food/r.revenue*100],["임차료",man(r.rent),r.rent/r.revenue*100],["인건비",man(r.labor),r.laborRate*100],["기타 비용",man(r.other),r.other/r.revenue*100],["영업이익",man(r.op),r.opRate*100]];
+  const st=[["시간대",...C.roles.map(x=>x.lab),"근무 시간","하루 손님","시간당 손님","주방 감당/시간","홀 감당/시간","하루 놓친 손님","회전율","상태"]];
+  r.slots.forEach(s=>{ const n=rd.staff[s.k]; st.push([s.lab,n.kf,n.kp,n.hf,n.hp,s.h,Math.round(s.cust),Math.round(s.perH*10)/10,s.K,s.H,Math.round(s.lostCust),Math.round(s.turn*10)/10,s.st==="운영불가"?"운영 불가":s.st]); });
+  const pr=[["시간대","구분","인원","1명 주간 근무 (시간)","주휴수당","1명 월 인건비 (만원)","합계 (만원)"]];
+  r.per.forEach(x=>pr.push([x.slot,x.role,x.cnt,x.wkH,x.role.includes("알바")?(x.juhyu?"있음":"없음"):"-",man(x.one),man(x.all)]));
+  r.warn.forEach(w=>pr.push([w]));
+  const blob=XLSX_W([{name:"요약",rows:sum},{name:"인원 배치와 운영",rows:st},{name:"인건비 내역",rows:pr}]);
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`인건비시뮬레이터_${rd.team||"팀"}_라운드${i+1}.xlsx`; document.body.appendChild(a); a.click(); setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+}
+
+/* ---------- 매장 애니메이션 (홀) ---------- */
+const cv=$("cv"), ctx=cv.getContext("2d"), W=900, HH=470, SEC=30; // 1시간 = 30초
+const COUNTER={x:30,y:40,w:200,h:46}, DOOR={x:40,y:440};
+const PAL=["#7fa7d9","#e0a96d","#9cc59a","#c7a0d9","#e3c25b","#8fcfcf","#d98f8f","#b0b7c3"];
+let A=null, TB=[];
+function pickSlot(i){ viewSlot=i; document.querySelectorAll("#slotBtns .slot").forEach((b,j)=>b.classList.toggle("on",j===i)); resetAnim(); }
+function layoutTables(n){
+  const x0=270,y0=40,w=600,h=380; let cols=Math.max(1,Math.ceil(Math.sqrt(n*w/h))); const rows=Math.ceil(n/cols);
+  const cw=w/cols, ch=h/rows, sz=Math.max(18,Math.min(46,Math.min(cw,ch)*0.42));
+  TB=[]; for(let i=0;i<n;i++){ const c=i%cols, r=Math.floor(i/cols); const x=x0+cw*(c+0.5), y=y0+ch*(r+0.5);
+    TB.push({x,y,sz,g:null,seats:[[x,y-sz*0.85],[x,y+sz*0.85],[x-sz*0.95,y],[x+sz*0.95,y]]}); }
+}
+function resetAnim(){
+  if(!R){ A=null; return; }
+  const s=R.slots[viewSlot], I=S.inp, tot=s.dine+s.take+s.dl;
+  layoutTables(Math.min(60,Math.max(1,I.tables)));
+  const sc=Math.max(1,Math.ceil(tot/150));
+  A={s,sc,t:0,accG:0,accT:0,accD:0,groups:[],queue:[],takeQ:[],orderReq:[],kitchen:[],riders:[],
+    stat:{guests:0,take:0,del:0,complaint:0,seated:0},
+    staff:Array.from({length:s.nh},(_,i)=>({x:COUNTER.x+30+i*22%170,y:COUNTER.y+COUNTER.h+22,hx:COUNTER.x+30+i*22%170,hy:COUNTER.y+COUNTER.h+22,tx:0,ty:0,busy:0,task:null})),
+    kbusy:Array.from({length:s.nk},()=>({t:0,o:null}))};
+  A.staff.forEach(st=>{st.tx=st.hx;st.ty=st.hy;});
+}
+const gsize=()=>{const r=Math.random(); return r<0.3?1:r<0.7?2:r<0.85?3:4;};
+function newPerson(x,y){ return {x,y,tx:x,ty:y,col:PAL[Math.floor(Math.random()*PAL.length)]}; }
+function step(dt){
+  if(!A) return; const s=A.s, I=S.inp, sc=A.sc; A.t+=dt;
+  // 도착
+  A.accG+=s.dine/2.15/sc/SEC*dt; while(A.accG>=1){ A.accG-=1; if(A.groups.length<90){ const n=gsize(); const g={kind:"dine",n,state:"queue",wait:0,mood:0,members:Array.from({length:n},()=>newPerson(DOOR.x-30,DOOR.y+10))}; A.groups.push(g); A.queue.push(g); A.stat.guests+=n*sc; } }
+  A.accT+=s.take/sc/SEC*dt; while(A.accT>=1){ A.accT-=1; if(A.groups.length<90){ const g={kind:"take",n:1,state:"counterQ",wait:0,mood:0,members:[newPerson(DOOR.x-30,DOOR.y+10)]}; A.groups.push(g); A.takeQ.push(g); A.stat.take+=sc; } }
+  A.accD+=s.dl/sc/SEC*dt; while(A.accD>=1){ A.accD-=1; A.kitchen.push({n:1,kind:"del"}); A.stat.del+=sc; }
+  // 빈 테이블 배정
+  while(A.queue.length){ const tb=TB.find(t=>!t.g); if(!tb) break; const g=A.queue.shift(); tb.g=g; g.table=tb; g.state="needOrder"; g.wait=0; g.seatT=A.t; A.orderReq.push(g); A.stat.seated+=g.n*sc; g.members.forEach((m,i)=>{m.tx=tb.seats[i][0];m.ty=tb.seats[i][1];}); }
+  // 줄 위치
+  A.queue.forEach((g,qi)=>g.members.forEach((m,mi)=>{ m.tx=DOOR.x+10+mi*9; m.ty=DOOR.y-20-qi*22; }));
+  A.takeQ.forEach((g,qi)=>{ const m=g.members[0]; m.tx=COUNTER.x+COUNTER.w+20+qi*16; m.ty=COUNTER.y+COUNTER.h/2; });
+  // 홀 직원
+  A.staff.forEach(st=>{
+    if(st.busy>0){ st.busy-=dt; if(st.busy<=0){ const g=st.task; if(g){ if(g.kind==="dine"){ g.state="cooking"; g.wait=0; } else { g.state="takeCook"; g.wait=0; } A.kitchen.push({n:g.n,g}); } st.task=null; st.tx=st.hx; st.ty=st.hy; } return; }
+    let g=null; const a=A.orderReq[0], b=A.takeQ[0];
+    if(a&&b) g=(a.wait>=b.wait)?A.orderReq.shift():A.takeQ.shift(); else if(a) g=A.orderReq.shift(); else if(b) g=A.takeQ.shift();
+    if(g){ st.task=g; st.busy=g.n*sc*SEC/Math.max(1,I.capH); if(g.kind==="dine"){ st.tx=g.table.x+g.table.sz*0.9; st.ty=g.table.y-g.table.sz*0.9; } else { st.tx=COUNTER.x+COUNTER.w-10; st.ty=COUNTER.y+COUNTER.h+10; g.state="ordering"; } }
+  });
+  // 주방 (화면에는 안 보임)
+  A.kbusy.forEach(k=>{ if(k.t>0){ k.t-=dt; if(k.t<=0&&k.o){ const o=k.o; if(o.kind==="del") A.riders.push({x:DOOR.x+30,y:DOOR.y+5,life:2}); else if(o.g.kind==="dine"){ o.g.state="eating"; o.g.wait=0; } else { o.g.state="leave"; o.g.members[0].tx=DOOR.x-60; o.g.members[0].ty=DOOR.y+20; } k.o=null; } return; }
+    if(A.kitchen.length){ k.o=A.kitchen.shift(); k.t=k.o.n*sc*SEC/Math.max(1,I.capK); } });
+  // 손님 상태와 컴플레인
+  const complain=g=>{ if(!g.complained){ g.complained=true; A.stat.complaint+=g.n*sc; } g.mood=2; };
+  A.groups.forEach(g=>{ g.wait+=dt;
+    if(g.state==="queue"){ if(g.wait>SEC*0.25) g.mood=1; if(g.wait>SEC*0.5){ complain(g); g.state="leave"; const qi=A.queue.indexOf(g); if(qi>=0) A.queue.splice(qi,1); g.members.forEach(m=>{m.tx=DOOR.x-60;m.ty=DOOR.y+20;}); } }
+    else if(g.state==="counterQ"||g.state==="ordering"||g.state==="takeCook"){ if(g.wait>SEC*0.25) g.mood=1; if(g.wait>SEC*0.5) complain(g); }
+    else if(g.state==="needOrder"){ if(g.wait>SEC*0.15) g.mood=1; if(g.wait>SEC*0.3) complain(g); }
+    else if(g.state==="cooking"){ if(g.wait>SEC*0.3) g.mood=Math.max(g.mood,1); if(g.wait>SEC*0.5) complain(g); }
+    else if(g.state==="eating"){ if(A.t-g.seatT>=SEC*1&&g.wait>SEC*0.25){ g.state="leave"; g.table.g=null; g.members.forEach(m=>{m.tx=DOOR.x-60;m.ty=DOOR.y+20;}); } }
+  });
+  A.groups=A.groups.filter(g=>!(g.state==="leave"&&g.members.every(m=>Math.abs(m.x-m.tx)<3&&Math.abs(m.y-m.ty)<3)));
+  A.riders.forEach(r=>{r.life-=dt;r.x-=40*dt;}); A.riders=A.riders.filter(r=>r.life>0);
+  const mv=o=>{ const sp=160*dt, dx=o.tx-o.x, dy=o.ty-o.y, d=Math.hypot(dx,dy); if(d<=sp){o.x=o.tx;o.y=o.ty;} else {o.x+=dx/d*sp;o.y+=dy/d*sp;} };
+  A.groups.forEach(g=>g.members.forEach(mv)); A.staff.forEach(mv);
+}
+function person(x,y,body,mood,staff){
+  ctx.fillStyle=body; ctx.beginPath(); ctx.ellipse(x,y+6,7,9,0,0,Math.PI*2); ctx.fill();
+  if(staff){ ctx.fillStyle="#fff"; ctx.fillRect(x-4,y+3,8,10); }
+  ctx.fillStyle=mood===2?"#f3a3a3":"#f6d7b8"; ctx.beginPath(); ctx.arc(x,y-6,6.5,0,Math.PI*2); ctx.fill();
+  if(staff){ ctx.fillStyle="#1d5a3a"; ctx.fillRect(x-7,y-14,14,4); }
+  ctx.fillStyle="#333"; ctx.fillRect(x-3,y-8,1.6,1.6); ctx.fillRect(x+1.5,y-8,1.6,1.6);
+  ctx.strokeStyle="#333"; ctx.lineWidth=1.2; ctx.beginPath();
+  if(mood===0||staff) ctx.arc(x,y-5,2.5,0.15*Math.PI,0.85*Math.PI); else if(mood===1){ ctx.moveTo(x-2.5,y-3); ctx.lineTo(x+2.5,y-3); } else ctx.arc(x,y-1.5,2.5,1.15*Math.PI,1.85*Math.PI);
+  ctx.stroke();
+  if(mood===2&&!staff){ ctx.fillStyle="#e5484d"; ctx.font="bold 13px sans-serif"; ctx.fillText("!",x+7,y-12); }
+}
+function draw(){
+  ctx.clearRect(0,0,W,HH);
+  ctx.fillStyle="#f6efe2"; ctx.fillRect(10,10,W-20,HH-20); ctx.strokeStyle="#c9b48f"; ctx.lineWidth=2; ctx.strokeRect(10,10,W-20,HH-20);
+  ctx.fillStyle="#8b6f47"; ctx.fillRect(COUNTER.x,COUNTER.y,COUNTER.w,COUNTER.h); ctx.fillStyle="#fff"; ctx.font="bold 13px sans-serif"; ctx.fillText("카운터 · 주방",COUNTER.x+55,COUNTER.y+28);
+  ctx.fillStyle="#7a9a6a"; ctx.fillRect(DOOR.x-20,HH-14,70,8); ctx.fillStyle="#555"; ctx.font="12px sans-serif"; ctx.fillText("입구",DOOR.x+60,HH-14);
+  TB.forEach(t=>{ t.seats.forEach(p=>{ ctx.fillStyle="#e6dcc8"; ctx.beginPath(); ctx.arc(p[0],p[1],6,0,Math.PI*2); ctx.fill(); });
+    ctx.fillStyle="#c8a97e"; ctx.fillRect(t.x-t.sz/2,t.y-t.sz/2,t.sz,t.sz);
+    const g=t.g; if(g&&A){ if(g.state==="eating"){ ctx.fillStyle="#fff"; ctx.beginPath(); ctx.arc(t.x,t.y,t.sz*0.22,0,Math.PI*2); ctx.fill(); ctx.fillStyle="#e39b4a"; ctx.beginPath(); ctx.arc(t.x,t.y,t.sz*0.12,0,Math.PI*2); ctx.fill(); }
+      else if(g.state==="cooking"){ ctx.fillStyle="#555"; ctx.font="11px sans-serif"; ctx.fillText("조리 중",t.x-17,t.y+4); }
+      else if(g.state==="needOrder"){ ctx.fillStyle="#2f5d8a"; ctx.font="11px sans-serif"; ctx.fillText("주문 대기",t.x-22,t.y+4); } } });
+  if(!A){ ctx.fillStyle="#999"; ctx.font="15px sans-serif"; ctx.fillText("입력을 모두 채우면 매장이 움직임",330,240); return; }
+  A.riders.forEach(r=>{ ctx.fillStyle="#f29b38"; ctx.fillRect(r.x,r.y-10,16,11); ctx.fillStyle="#333"; ctx.font="10px sans-serif"; ctx.fillText("배달",r.x-2,r.y+12); });
+  A.groups.forEach(g=>g.members.forEach(m=>person(m.x,m.y,m.col,g.mood,false)));
+  A.staff.forEach(st=>person(st.x,st.y,"#27845a",0,true));
+  if(A.s.nh===0&&A.s.inst>0){ ctx.fillStyle="#e5484d"; ctx.font="bold 18px sans-serif"; ctx.fillText("홀 직원 없음",380,240); }
+  if(A.s.nk===0){ ctx.fillStyle="#e5484d"; ctx.font="bold 18px sans-serif"; ctx.fillText("주방 직원 없음",380,270); }
+  ctx.fillStyle=A.queue.length?"#e5484d":"#2f5d8a"; ctx.font="bold 13px sans-serif"; ctx.fillText("입구 대기 "+A.queue.reduce((a,g)=>a+g.n,0)*A.sc+"명",DOOR.x+60,HH-34);
+  ctx.fillStyle=A.kitchen.length>4?"#e5484d":"#2f5d8a"; ctx.fillText("주방에 밀린 주문 "+A.kitchen.length*A.sc+"건",COUNTER.x,COUNTER.y+COUNTER.h+50);
+  const empty=TB.filter(t=>!t.g).length;
+  $("counters").innerHTML=`<span>${A.s.lab} · 시간당 손님 <b>${h1(A.s.perH)}</b>명 (매장 ${h1(A.s.dine)} · 포장 ${h1(A.s.take)} · 배달 ${h1(A.s.dl)})</span><span>홀 직원 <b>${A.s.nh}</b>명 · 주방 직원 <b>${A.s.nk}</b>명</span><span>빈 테이블 <b>${empty}</b>/${TB.length}</span><span>매장 손님 <b>${A.stat.guests}</b></span><span>포장 <b>${A.stat.take}</b></span><span>배달 <b>${A.stat.del}</b></span><span style="color:#e5484d">컴플레인 <b>${A.stat.complaint}</b>명</span><span>경과 <b>${(A.t/SEC).toFixed(1)}</b>시간</span>${A.sc>1?`<span class="sum">사람 1명 = 손님 ${A.sc}명</span>`:""}`;
+}
+let last=performance.now();
+function loop(now){ const dt=Math.min(0.1,(now-last)/1000); last=now; step(dt); draw(); requestAnimationFrame(loop); }
+
+init();
+</script>
+</body>
+</html>
